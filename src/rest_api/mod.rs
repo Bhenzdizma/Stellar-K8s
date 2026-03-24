@@ -3,6 +3,8 @@
 //! Provides an HTTP API for querying and managing StellarNodes.
 
 mod custom_metrics;
+mod dashboard_dto;
+mod dashboard_handlers;
 mod dto;
 mod handlers;
 mod server;
