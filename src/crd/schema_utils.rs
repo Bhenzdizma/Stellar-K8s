@@ -37,7 +37,11 @@ pub fn int_or_string_schema(_: &mut SchemaGenerator) -> Schema {
 pub fn object_schema(_: &mut SchemaGenerator) -> Schema {
     SchemaObject {
         instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::Object))),
-        extensions: [("x-kubernetes-preserve-unknown-fields".to_string(), json!(true))].into(),
+        extensions: [(
+            "x-kubernetes-preserve-unknown-fields".to_string(),
+            json!(true),
+        )]
+        .into(),
         ..Default::default()
     }
     .into()
@@ -48,11 +52,17 @@ pub fn array_of_objects_schema(_: &mut SchemaGenerator) -> Schema {
     SchemaObject {
         instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::Array))),
         array: Some(Box::new(schemars::schema::ArrayValidation {
-            items: Some(SingleOrVec::Single(Box::new(Schema::Object(SchemaObject {
-                instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::Object))),
-                extensions: [("x-kubernetes-preserve-unknown-fields".to_string(), json!(true))].into(),
-                ..Default::default()
-            })))),
+            items: Some(SingleOrVec::Single(Box::new(Schema::Object(
+                SchemaObject {
+                    instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::Object))),
+                    extensions: [(
+                        "x-kubernetes-preserve-unknown-fields".to_string(),
+                        json!(true),
+                    )]
+                    .into(),
+                    ..Default::default()
+                },
+            )))),
             ..Default::default()
         })),
         ..Default::default()

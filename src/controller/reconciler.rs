@@ -106,7 +106,6 @@ pub struct ControllerState {
     /// Optional expiration time for a temporary log level change
     pub log_level_expires_at:
         std::sync::Arc<tokio::sync::Mutex<Option<chrono::DateTime<chrono::Utc>>>>,
-    pub log_level_expires_at: std::sync::Arc<tokio::sync::Mutex<Option<chrono::DateTime<chrono::Utc>>>>,
     /// Timestamp of the last event received from the K8s watch stream
     pub last_event_received: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
@@ -848,8 +847,13 @@ pub(crate) async fn apply_stellar_node(
                 }
             }
 
-            // Automatic Checkpoint Integrity Check
-            if let Some(archive_config) = &validator_config.archive_integrity_config {
+            // Automatic checkpoint integrity checks are configured under DR config.
+            if let Some(archive_config) = node
+                .spec
+                .dr_config
+                .as_ref()
+                .and_then(|dr| dr.archive_integrity_config.as_ref())
+            {
                 if archive_config.enabled && !validator_config.history_archive_urls.is_empty() {
                     let interval = match parse_duration(&archive_config.interval) {
                         Ok(d) => d,
@@ -1642,6 +1646,7 @@ pub(crate) async fn apply_stellar_node(
                 &name,
                 &node.spec.node_type.to_string(),
                 node.spec.network_passphrase(),
+                &hardware_generation,
                 seq,
             );
 
@@ -1655,6 +1660,7 @@ pub(crate) async fn apply_stellar_node(
                     &name,
                     &node.spec.node_type.to_string(),
                     node.spec.network_passphrase(),
+                    &hardware_generation,
                     lag.max(0),
                 );
             }
@@ -1669,17 +1675,17 @@ pub(crate) async fn apply_stellar_node(
             &namespace,
             &name,
             &node.spec.node_type.to_string(),
-            node.spec.network.passphrase(),
+            node.spec.network_passphrase(),
             &hardware_generation,
             phase,
         );
-        
+
         // 10c. Update node up status based on pod readiness
         metrics::set_node_up(
             &namespace,
             &name,
             &node.spec.node_type.to_string(),
-            node.spec.network.passphrase(),
+            node.spec.network_passphrase(),
             &hardware_generation,
             health_result.healthy,
         );
@@ -2436,6 +2442,7 @@ async fn run_archive_integrity_check(
         &name,
         &node.spec.node_type.to_string(),
         node.spec.network_passphrase(),
+        &hardware_generation,
         max_lag as i64,
     );
 
@@ -2727,7 +2734,7 @@ async fn update_status_with_canary(
 /// Run the archive checkpoint verification check
 async fn run_archive_checkpoint_verification(
     client: &Client,
-    reporter: &EventReporter,
+    reporter: &Reporter,
     node: &StellarNode,
     urls: &[String],
     config: &crate::crd::ArchiveIntegrityConfig,
@@ -2773,14 +2780,25 @@ async fn run_archive_checkpoint_verification(
         )
     } else {
         let failed = results.iter().filter(|r| !r.healthy).count();
-        format!("Archive integrity corruption detected: {}/{} archives corrupted", failed, results.len())
+        format!(
+            "Archive integrity corruption detected: {}/{} archives corrupted",
+            failed,
+            results.len()
+        )
     };
 
     // Update metrics
     let node_type = format!("{:?}", node.spec.node_type);
     let network = format!("{:?}", node.spec.network);
-    let hardware = node.spec.hardware_generation.clone();
-    metrics::set_archive_integrity_status(&namespace, &name, &node_type, &network, &hardware, all_healthy);
+    let hardware = hardware_generation_for_metrics(client, node).await;
+    metrics::set_archive_integrity_status(
+        &namespace,
+        &name,
+        &node_type,
+        &network,
+        &hardware,
+        all_healthy,
+    );
 
     // Update status conditions
     let mut status = node.status.clone().unwrap_or_default();
@@ -2817,8 +2835,10 @@ async fn run_archive_checkpoint_verification(
             EventType::Warning,
             "ArchiveIntegrityCorruption",
             "ArchiveIntegrity",
-            &format!("FATAL: Corruption detected in history archives!\n\nDetails:\n{}", 
-                results.iter()
+            &format!(
+                "FATAL: Corruption detected in history archives!\n\nDetails:\n{}",
+                results
+                    .iter()
                     .filter(|r| !r.healthy)
                     .map(|r| format!("- {}: {}", r.url, r.message))
                     .collect::<Vec<_>>()
@@ -2831,7 +2851,9 @@ async fn run_archive_checkpoint_verification(
     // Set observed generation
     if let Some(gen) = node.metadata.generation {
         for condition in &mut status.conditions {
-            if condition.type_ == "ArchiveIntegrityCheck" || condition.type_ == "ArchiveIntegrityCorrupted" {
+            if condition.type_ == "ArchiveIntegrityCheck"
+                || condition.type_ == "ArchiveIntegrityCorrupted"
+            {
                 condition.observed_generation = Some(gen);
             }
         }
@@ -2853,16 +2875,24 @@ async fn run_archive_checkpoint_verification(
 fn parse_duration(s: &str) -> Result<Duration> {
     let s = s.trim();
     if s.ends_with('h') {
-        let hours = s[..s.len() - 1].parse::<u64>().map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
+        let hours = s[..s.len() - 1]
+            .parse::<u64>()
+            .map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
         Ok(Duration::from_secs(hours * 3600))
     } else if s.ends_with('m') {
-        let mins = s[..s.len() - 1].parse::<u64>().map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
+        let mins = s[..s.len() - 1]
+            .parse::<u64>()
+            .map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
         Ok(Duration::from_secs(mins * 60))
     } else if s.ends_with('s') {
-        let secs = s[..s.len() - 1].parse::<u64>().map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
+        let secs = s[..s.len() - 1]
+            .parse::<u64>()
+            .map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
         Ok(Duration::from_secs(secs))
     } else {
-        Err(Error::ConfigError(format!("Unsupported duration format: {s}")))
+        Err(Error::ConfigError(format!(
+            "Unsupported duration format: {s}"
+        )))
     }
 }
 
@@ -2872,7 +2902,7 @@ async fn get_latest_network_ledger(network: &crate::crd::StellarNetwork) -> Resu
         crate::crd::StellarNetwork::Mainnet => "https://horizon.stellar.org",
         crate::crd::StellarNetwork::Testnet => "https://horizon-testnet.stellar.org",
         crate::crd::StellarNetwork::Futurenet => "https://horizon-futurenet.stellar.org",
-        crate::crd::StellarNetwork::Custom => {
+        crate::crd::StellarNetwork::Custom(_) => {
             return Err(Error::ConfigError(
                 "Custom network not supported for lag calculation yet".to_string(),
             ))
@@ -3033,7 +3063,7 @@ async fn perform_quorum_analysis(client: &Client, node: &StellarNode) -> Result<
             crate::crd::StellarNetwork::Mainnet => "mainnet",
             crate::crd::StellarNetwork::Testnet => "testnet",
             crate::crd::StellarNetwork::Futurenet => "futurenet",
-            crate::crd::StellarNetwork::Custom => "custom",
+            crate::crd::StellarNetwork::Custom(_) => "custom",
         };
 
         metrics::set_quorum_critical_nodes(

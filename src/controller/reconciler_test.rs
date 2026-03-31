@@ -89,7 +89,6 @@ VALIDATORS=["VALIDATOR1", "VALIDATOR2"]"#
                 horizon_config: None,
                 soroban_config: None,
                 replicas: 1,
-                ..Default::default()
                 min_available: None,
                 max_unavailable: None,
                 suspended: false,
@@ -184,7 +183,6 @@ VALIDATORS=["VALIDATOR1", "VALIDATOR2"]"#
                     pooling: None,
                     postgres_version: "16".to_string(),
                 }),
-                ..Default::default()
                 autoscaling: None,
                 ingress: None,
                 load_balancer: None,
@@ -270,7 +268,6 @@ VALIDATORS=["VALIDATOR1", "VALIDATOR2"]"#
                     max_events_per_request: 10000,
                 }),
                 replicas: 3,
-                ..Default::default()
                 min_available: None,
                 max_unavailable: None,
                 suspended: false,

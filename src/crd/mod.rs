@@ -49,11 +49,11 @@
 
 mod cnpg;
 pub mod read_replica;
+pub mod schema_utils;
 pub mod seed_secret;
 pub mod service_mesh;
 mod stellar_node;
 pub mod types;
-pub mod schema_utils;
 
 #[cfg(test)]
 mod tests;

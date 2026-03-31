@@ -24,7 +24,6 @@ mod tests {
                 network: StellarNetwork::Testnet,
                 version: "v21.0.0".to_string(),
                 replicas: 1,
-                ..Default::default()
                 min_available: None,
                 max_unavailable: None,
                 suspended: false,

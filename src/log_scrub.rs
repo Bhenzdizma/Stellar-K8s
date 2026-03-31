@@ -46,12 +46,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 use tracing::{Event, Subscriber};
-use tracing_subscriber::{
-    fmt::MakeWriter,
-    layer::Context,
-    registry::LookupSpan,
-    Layer,
-};
+use tracing_subscriber::{fmt::MakeWriter, layer::Context, registry::LookupSpan, Layer};
 
 // ── Compiled regex patterns (initialised once) ───────────────────────────────
 
@@ -63,33 +58,34 @@ fn patterns() -> &'static [(&'static str, Regex)] {
             // Stellar seed: 'S' followed by 55 base58 characters (56 total)
             (
                 "stellar_seed",
-                Regex::new(r"\bS[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{55}\b")
-                    .expect("stellar_seed regex"),
+                Regex::new(
+                    r"\bS[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{55}\b",
+                )
+                .expect("stellar_seed regex"),
             ),
             // PEM private key block (single-line or multi-line collapsed)
             (
                 "pem_private_key",
-                Regex::new(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[^-]*-----END [A-Z ]*PRIVATE KEY-----")
-                    .expect("pem_private_key regex"),
+                Regex::new(
+                    r"-----BEGIN [A-Z ]*PRIVATE KEY-----[^-]*-----END [A-Z ]*PRIVATE KEY-----",
+                )
+                .expect("pem_private_key regex"),
             ),
             // Bearer token in Authorization header values
             (
                 "bearer_token",
-                Regex::new(r"(?i)bearer\s+[A-Za-z0-9\-_=+/]{20,}")
-                    .expect("bearer_token regex"),
+                Regex::new(r"(?i)bearer\s+[A-Za-z0-9\-_=+/]{20,}").expect("bearer_token regex"),
             ),
             // Raw base64 segments ≥ 40 chars (likely encoded key material or hashes)
             // Excludes short segments common in k8s resource names / UIDs.
             (
                 "base64_segment",
-                Regex::new(r"(?:[A-Za-z0-9+/]{40,}={0,2})")
-                    .expect("base64_segment regex"),
+                Regex::new(r"(?:[A-Za-z0-9+/]{40,}={0,2})").expect("base64_segment regex"),
             ),
             // Hex strings ≥ 64 chars (SHA-256 or larger hashes of key material)
             (
                 "hex_hash",
-                Regex::new(r"\b[0-9a-fA-F]{64,}\b")
-                    .expect("hex_hash regex"),
+                Regex::new(r"\b[0-9a-fA-F]{64,}\b").expect("hex_hash regex"),
             ),
         ]
     })
@@ -272,7 +268,10 @@ impl Default for ScrubFormattingLayer {
 
 impl<W> ScrubFormattingLayer<W> {
     /// Create with a custom writer (useful for testing).
-    pub fn with_writer<W2: for<'a> MakeWriter<'a>>(self, make_writer: W2) -> ScrubFormattingLayer<W2> {
+    pub fn with_writer<W2: for<'a> MakeWriter<'a>>(
+        self,
+        make_writer: W2,
+    ) -> ScrubFormattingLayer<W2> {
         ScrubFormattingLayer { make_writer }
     }
 }
@@ -310,7 +309,10 @@ mod tests {
         let input = format!("reconciling node seed={seed}");
         let output = redact(&input);
         assert!(!output.contains(seed), "seed must be redacted");
-        assert!(output.contains("[REDACTED:stellar_seed]"), "marker must be present");
+        assert!(
+            output.contains("[REDACTED:stellar_seed]"),
+            "marker must be present"
+        );
     }
 
     #[test]
@@ -320,7 +322,10 @@ mod tests {
         let input = format!("node public_key={pubkey}");
         let output = redact(&input);
         // Public keys are 56 chars starting with G — not matched by stellar_seed pattern
-        assert!(output.contains(pubkey), "public key must NOT be redacted: {output}");
+        assert!(
+            output.contains(pubkey),
+            "public key must NOT be redacted: {output}"
+        );
     }
 
     #[test]
@@ -328,7 +333,10 @@ mod tests {
         let pem = "-----BEGIN EC PRIVATE KEY-----\nABCDEFGHIJKLMNOP\n-----END EC PRIVATE KEY-----";
         let input = format!("loaded key: {pem}");
         let output = redact(&input);
-        assert!(!output.contains("BEGIN EC PRIVATE KEY"), "PEM block must be redacted");
+        assert!(
+            !output.contains("BEGIN EC PRIVATE KEY"),
+            "PEM block must be redacted"
+        );
         assert!(output.contains("[REDACTED:pem_private_key]"));
     }
 
@@ -336,7 +344,10 @@ mod tests {
     fn test_bearer_token_is_redacted() {
         let input = "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig";
         let output = redact(&input);
-        assert!(!output.contains("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"), "token must be redacted");
+        assert!(
+            !output.contains("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"),
+            "token must be redacted"
+        );
         assert!(output.contains("[REDACTED:bearer_token]"));
     }
 
@@ -347,7 +358,10 @@ mod tests {
         assert!(b64.len() >= 40);
         let input = format!("raw_payload={b64}");
         let output = redact(&input);
-        assert!(!output.contains(b64), "long base64 must be redacted: {output}");
+        assert!(
+            !output.contains(b64),
+            "long base64 must be redacted: {output}"
+        );
         assert!(output.contains("[REDACTED:base64_segment]"));
     }
 
@@ -367,7 +381,10 @@ mod tests {
         assert_eq!(hash.len(), 64);
         let input = format!("internal_hash={hash}");
         let output = redact(&input);
-        assert!(!output.contains(hash), "hex hash must be redacted: {output}");
+        assert!(
+            !output.contains(hash),
+            "hex hash must be redacted: {output}"
+        );
         assert!(output.contains("[REDACTED:hex_hash]"));
     }
 
@@ -444,6 +461,9 @@ mod tests {
         // The scrub layer should have written a warning
         let bytes = output.lock().unwrap();
         let written = String::from_utf8_lossy(&bytes);
-        assert!(written.contains("[LOG_SCRUB]"), "scrub warning must be emitted: {written}");
+        assert!(
+            written.contains("[LOG_SCRUB]"),
+            "scrub warning must be emitted: {written}"
+        );
     }
 }

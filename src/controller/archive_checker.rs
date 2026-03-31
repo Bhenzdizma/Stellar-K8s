@@ -4,12 +4,12 @@
 //! Downloads historical checkpoints and verifies their hashes against the ledger.
 
 use crate::error::{Error, Result};
+use rand::Rng;
 use reqwest::Client;
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::time::Duration;
 use tracing::{debug, info, warn};
-use sha2::{Sha256, Digest};
-use rand::Rng;
 
 /// Result of an archive integrity check
 #[derive(Debug, Clone)]
@@ -54,8 +54,12 @@ pub async fn check_archive_integrity_random(
 
     // 1. Get current ledger from stellar-history.json
     let metadata_url = format!("{base_url}/.well-known/stellar-history.json");
-    let resp = client.get(&metadata_url).send().await.map_err(Error::HttpError)?;
-    
+    let resp = client
+        .get(&metadata_url)
+        .send()
+        .await
+        .map_err(Error::HttpError)?;
+
     if !resp.status().is_success() {
         return Ok(ArchiveIntegrityCheckResult {
             url: url.to_string(),
@@ -93,18 +97,20 @@ pub async fn check_archive_integrity_random(
         to_verify, url, num_checkpoints
     );
 
-    let mut rng = rand::thread_rng();
     let mut verified_count = 0;
 
     for _ in 0..to_verify {
         // Pick a random checkpoint ledger
-        let checkpoint_idx = rng.gen_range(1..=num_checkpoints);
+        let checkpoint_idx = {
+            let mut rng = rand::thread_rng();
+            rng.gen_range(1..=num_checkpoints)
+        };
         let checkpoint_ledger = checkpoint_idx * 64 - 1;
 
         // In a real implementation, we would download the history-*.xdr.gz file
         // and verify its hash. For this implementation, we'll simulate the download
         // and verification of a bucket file as it's a key part of history.
-        
+
         // Construct path for a history file (simplified for demonstration)
         // Format: /history/00/00/00/history-0000003f.json
         let hex_ledger = format!("{:08x}", checkpoint_ledger);
@@ -115,47 +121,61 @@ pub async fn check_archive_integrity_random(
             &hex_ledger[4..6],
             hex_ledger
         );
-        
+
         let file_url = format!("{base_url}/{path}");
         debug!("Downloading checkpoint file: {}", file_url);
 
         match client.get(&file_url).send().await {
             Ok(file_resp) if file_resp.status().is_success() => {
                 let data = file_resp.bytes().await.map_err(Error::HttpError)?;
-                
+
                 // Verify hash (simulation: in reality we'd compare against ledger state)
                 let mut hasher = Sha256::new();
                 hasher.update(&data);
                 let _hash = hasher.finalize();
-                
+
                 // We'll assume verification passes if we can download the file
-                // and it's not empty. In a real scenario, we'd check against 
+                // and it's not empty. In a real scenario, we'd check against
                 // trusted ledger hashes.
                 if data.is_empty() {
                     return Ok(ArchiveIntegrityCheckResult {
                         url: url.to_string(),
                         healthy: false,
                         checkpoints_verified: verified_count,
-                        message: format!("Corrupted checkpoint detected: empty file at {}", file_url),
+                        message: format!(
+                            "Corrupted checkpoint detected: empty file at {}",
+                            file_url
+                        ),
                         error: Some("Empty checkpoint file".to_string()),
                     });
                 }
-                
+
                 verified_count += 1;
             }
             Ok(file_resp) => {
-                warn!("Failed to download checkpoint file {}: HTTP {}", file_url, file_resp.status());
+                warn!(
+                    "Failed to download checkpoint file {}: HTTP {}",
+                    file_url,
+                    file_resp.status()
+                );
                 // Non-200 for a historical file is a sign of corruption/missing data
                 return Ok(ArchiveIntegrityCheckResult {
                     url: url.to_string(),
                     healthy: false,
                     checkpoints_verified: verified_count,
-                    message: format!("Missing checkpoint file: HTTP {} at {}", file_resp.status(), file_url),
+                    message: format!(
+                        "Missing checkpoint file: HTTP {} at {}",
+                        file_resp.status(),
+                        file_url
+                    ),
                     error: Some(format!("HTTP {}", file_resp.status())),
                 });
             }
             Err(e) => {
-                warn!("Connection error downloading checkpoint {}: {}", file_url, e);
+                warn!(
+                    "Connection error downloading checkpoint {}: {}",
+                    file_url, e
+                );
                 return Ok(ArchiveIntegrityCheckResult {
                     url: url.to_string(),
                     healthy: false,
@@ -171,7 +191,10 @@ pub async fn check_archive_integrity_random(
         url: url.to_string(),
         healthy: true,
         checkpoints_verified: verified_count,
-        message: format!("Successfully verified {} random checkpoints", verified_count),
+        message: format!(
+            "Successfully verified {} random checkpoints",
+            verified_count
+        ),
         error: None,
     })
 }

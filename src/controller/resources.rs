@@ -72,7 +72,9 @@ pub(crate) fn standard_labels(node: &StellarNode) -> BTreeMap<String, String> {
     );
     labels.insert(
         "stellar-network".to_string(),
-        node.spec.network.scheduling_label_value(&node.spec.custom_network_passphrase),
+        node.spec
+            .network
+            .scheduling_label_value(&node.spec.custom_network_passphrase),
     );
     labels
 }
@@ -342,8 +344,7 @@ pub(crate) fn build_config_map(
 
     data.insert(
         "NETWORK_PASSPHRASE".to_string(),
-                node.spec.network_passphrase()
-.to_string(),
+        node.spec.network_passphrase().to_string(),
     );
 
     if enable_mtls {
@@ -1648,7 +1649,8 @@ fn network_spread_label_selector(spec: &StellarNodeSpec) -> LabelSelector {
             ),
             (
                 "stellar-network".to_string(),
-                spec.network.scheduling_label_value(&spec.custom_network_passphrase),
+                spec.network
+                    .scheduling_label_value(&spec.custom_network_passphrase),
             ),
             (
                 "app.kubernetes.io/component".to_string(),
@@ -2824,7 +2826,6 @@ mod ensure_pvc_tests {
                     },
                 },
                 replicas: 1,
-                ..Default::default()
                 min_available: None,
                 max_unavailable: None,
                 suspended: false,

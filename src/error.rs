@@ -87,6 +87,10 @@ pub enum Error {
     /// Kubeconfig error
     #[error("[SK8S-019] Kubeconfig error: {0}")]
     KubeconfigError(#[from] kube::config::KubeconfigError),
+
+    /// Zip archive error
+    #[error("[SK8S-020] Zip error: {0}")]
+    ZipError(#[from] zip::result::ZipError),
 }
 
 /// Result type alias for operator operations
@@ -131,6 +135,7 @@ impl Error {
             Error::MaintenanceError(msg) => format!("[SK8S-017] Database maintenance error: {msg}"),
             Error::SqlxError(e) => format!("[SK8S-018] SQL error: {e}"),
             Error::KubeconfigError(e) => format!("[SK8S-019] Kubeconfig error: {e}"),
+            Error::ZipError(e) => format!("[SK8S-020] Zip error: {e}"),
         }
     }
 }

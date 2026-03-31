@@ -12,6 +12,7 @@ use kube::ResourceExt;
 use stellar_k8s::controller::archive_prune::{prune_archive, PruneArchiveArgs};
 use stellar_k8s::controller::diff::{diff, DiffArgs};
 use stellar_k8s::infra;
+use stellar_k8s::log_scrub::ScrubLayer;
 use stellar_k8s::{controller, crd::StellarNode, incident, preflight, Error};
 use tracing::{debug, info, info_span, warn, Instrument, Level};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -361,6 +362,15 @@ async fn main() -> Result<(), Error> {
         }
         Commands::IncidentReport(args) => {
             return incident::run_incident_report(args).await;
+        }
+        Commands::PruneArchive(args) => {
+            return prune_archive(args).await;
+        }
+        Commands::Diff(args) => {
+            return diff(args).await;
+        }
+        Commands::GenerateRunbook(args) => {
+            return run_generate_runbook(args).await;
         }
     }
 }
@@ -749,8 +759,8 @@ async fn run_info(args: InfoArgs) -> Result<(), Error> {
 }
 
 async fn run_generate_runbook(args: GenerateRunbookArgs) -> Result<(), Error> {
-    use kube::Client;
     use kube::api::Api;
+    use kube::Client;
     use stellar_k8s::runbook::generate_runbook;
 
     // Create Kubernetes client
@@ -763,7 +773,7 @@ async fn run_generate_runbook(args: GenerateRunbookArgs) -> Result<(), Error> {
     let node = api
         .get(&args.node_name)
         .await
-        .map_err(|e| Error::NotFound {
+        .map_err(|_e| Error::NotFound {
             kind: "StellarNode".to_string(),
             name: args.node_name.clone(),
             namespace: args.namespace.clone(),
@@ -774,8 +784,7 @@ async fn run_generate_runbook(args: GenerateRunbookArgs) -> Result<(), Error> {
 
     // Output to file or stdout
     if let Some(output_path) = args.output {
-        std::fs::write(&output_path, &runbook)
-            .map_err(|e| Error::IoError(e))?;
+        std::fs::write(&output_path, &runbook).map_err(|e| Error::IoError(e))?;
         println!("Runbook generated successfully: {}", output_path);
     } else {
         println!("{}", runbook);

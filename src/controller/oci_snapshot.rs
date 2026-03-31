@@ -485,7 +485,6 @@ mod tests {
                     hsm_config: None,
                 }),
                 replicas: 1,
-                ..Default::default()
                 min_available: None,
                 max_unavailable: None,
                 suspended: false,

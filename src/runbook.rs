@@ -86,7 +86,12 @@ pub fn generate_runbook(node: &StellarNode) -> Result<String> {
     runbook.push_str(&generate_common_troubleshooting(&name, &namespace));
 
     // Archive section if applicable
-    if spec.validator_config.as_ref().map(|v| v.enable_history_archive).unwrap_or(false) {
+    if spec
+        .validator_config
+        .as_ref()
+        .map(|v| v.enable_history_archive)
+        .unwrap_or(false)
+    {
         runbook.push_str(&generate_archive_troubleshooting(node)?);
     }
 
@@ -373,7 +378,9 @@ fn generate_archive_troubleshooting(node: &StellarNode) -> Result<String> {
     // S3/GCS specific commands
     runbook.push_str("### 2. Verify Archive Bucket Access\n\n");
     runbook.push_str("```bash\n");
-    runbook.push_str("# For S3 archives:\naws s3 ls s3://your-archive-bucket/ --recursive | head -20\n\n");
+    runbook.push_str(
+        "# For S3 archives:\naws s3 ls s3://your-archive-bucket/ --recursive | head -20\n\n",
+    );
     runbook.push_str("# For GCS archives:\ngsutil ls -r gs://your-archive-bucket/ | head -20\n");
     runbook.push_str("```\n\n");
 
@@ -404,14 +411,16 @@ fn generate_kms_troubleshooting(node: &StellarNode) -> Result<String> {
 
     runbook.push_str("### 1. Check KMS Key Status\n\n");
     runbook.push_str("```bash\n");
-    runbook.push_str("# For AWS KMS:\naws kms describe-key --key-id <KEY_ID> --region <REGION>\n\n");
+    runbook
+        .push_str("# For AWS KMS:\naws kms describe-key --key-id <KEY_ID> --region <REGION>\n\n");
     runbook.push_str("# Check key rotation status:\naws kms get-key-rotation-status --key-id <KEY_ID> --region <REGION>\n\n");
     runbook.push_str("# For GCP KMS:\ngcloud kms keys describe <KEY_NAME> --location <LOCATION> --keyring <KEYRING>\n");
     runbook.push_str("```\n\n");
 
     runbook.push_str("### 2. Check KMS Permissions\n\n");
     runbook.push_str("```bash\n");
-    runbook.push_str("# For AWS KMS:\naws kms get-public-key --key-id <KEY_ID> --region <REGION>\n\n");
+    runbook
+        .push_str("# For AWS KMS:\naws kms get-public-key --key-id <KEY_ID> --region <REGION>\n\n");
     runbook.push_str("# For GCP KMS:\ngcloud kms keys get-iam-policy <KEY_NAME> --location <LOCATION> --keyring <KEYRING>\n");
     runbook.push_str("```\n\n");
 
@@ -442,7 +451,10 @@ fn generate_network_troubleshooting(node: &StellarNode) -> Result<String> {
 
     runbook.push_str("### Network Information\n\n");
     runbook.push_str(&format!("- **Network**: {:?}\n", spec.network));
-    runbook.push_str(&format!("- **Network Passphrase**: {}\n\n", spec.network.passphrase()));
+    runbook.push_str(&format!(
+        "- **Network Passphrase**: {}\n\n",
+        spec.network_passphrase()
+    ));
 
     runbook.push_str("### 1. Check Service\n\n");
     runbook.push_str("```bash\n");
@@ -476,7 +488,9 @@ fn generate_network_troubleshooting(node: &StellarNode) -> Result<String> {
     if let Some(validator_config) = &spec.validator_config {
         if let Some(quorum_set) = &validator_config.quorum_set {
             runbook.push_str("### 3. Expected Peer Connections\n\n");
-            runbook.push_str("Based on the quorum set configuration, this node should connect to:\n\n");
+            runbook.push_str(
+                "Based on the quorum set configuration, this node should connect to:\n\n",
+            );
             runbook.push_str("```toml\n");
             runbook.push_str(quorum_set);
             runbook.push_str("\n```\n\n");

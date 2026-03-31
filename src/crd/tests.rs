@@ -20,7 +20,6 @@ mod stellar_node_spec_validation {
                 seed_secret_ref: "validator-seed".to_string(),
                 ..Default::default()
             }),
-            ..Default::default()
             horizon_config: None,
             soroban_config: None,
             replicas: 1,
@@ -72,7 +71,6 @@ mod stellar_node_spec_validation {
                 ..Default::default()
             }),
             replicas: 2,
-            ..Default::default()
             min_available: None,
             max_unavailable: None,
             suspended: false,

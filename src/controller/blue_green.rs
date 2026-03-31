@@ -91,8 +91,8 @@ pub struct BlueGreenConfig {
 impl Default for BlueGreenConfig {
     fn default() -> Self {
         Self {
-            ready_timeout: Duration::from_secs(300),      // 5 minutes
-            switch_timeout: Duration::from_secs(60),      // 1 minute
+            ready_timeout: Duration::from_secs(300), // 5 minutes
+            switch_timeout: Duration::from_secs(60), // 1 minute
             enable_smoke_tests: true,
             health_check_endpoint: Some("/health".to_string()),
         }
@@ -122,11 +122,10 @@ pub async fn create_green_deployment(
     let mut green_deployment = blue_deployment.clone();
 
     // Update metadata
-    if let Some(metadata) = &mut green_deployment.metadata {
-        metadata.name = Some(format!("{}-green", node_name));
-        metadata.resource_version = None; // Clear resource version for new creation
-        metadata.uid = None;
-    }
+    let metadata = &mut green_deployment.metadata;
+    metadata.name = Some(format!("{}-green", node_name));
+    metadata.resource_version = None; // Clear resource version for new creation
+    metadata.uid = None;
 
     // Update labels to identify as Green
     if let Some(spec) = &mut green_deployment.spec {
@@ -134,19 +133,18 @@ pub async fn create_green_deployment(
             selector.insert("deployment-color".to_string(), "green".to_string());
         }
 
-        if let Some(template) = &mut spec.template {
-            if let Some(labels) = &mut template.metadata.as_mut().unwrap_or_default().labels {
-                labels.insert("deployment-color".to_string(), "green".to_string());
-            }
+        let template = &mut spec.template;
+        let metadata = template.metadata.get_or_insert_with(Default::default);
+        if let Some(labels) = &mut metadata.labels {
+            labels.insert("deployment-color".to_string(), "green".to_string());
+        }
 
-            // Update container image to new version if specified
-            if let Some(containers) = &mut template.spec.as_mut().unwrap_or_default().containers {
-                for container in containers {
-                    // Update image tag based on node version
-                    if let Some(image) = &mut container.image {
-                        *image = node.spec.container_image();
-                    }
-                }
+        // Update container image to new version if specified
+        let pod_spec = template.spec.get_or_insert_with(Default::default);
+        for container in &mut pod_spec.containers {
+            // Update image tag based on node version
+            if let Some(image) = &mut container.image {
+                *image = node.spec.container_image();
             }
         }
     }
@@ -212,10 +210,7 @@ pub async fn wait_for_green_ready(
                 }
             }
             Err(e) => {
-                warn!(
-                    "Error checking Green deployment status: {}. Retrying...",
-                    e
-                );
+                warn!("Error checking Green deployment status: {}. Retrying...", e);
             }
         }
 
@@ -294,10 +289,7 @@ pub async fn cleanup_blue_deployment(client: &Client, node: &StellarNode) -> Res
 
     match api.delete(&blue_name, &Default::default()).await {
         Ok(_) => {
-            info!(
-                "Deleted old Blue deployment {}/{}",
-                namespace, blue_name
-            );
+            info!("Deleted old Blue deployment {}/{}", namespace, blue_name);
             Ok(())
         }
         Err(e) => {
@@ -395,7 +387,10 @@ mod tests {
         assert_eq!(BlueGreenStatus::BlueActive.to_string(), "BlueActive");
         assert_eq!(BlueGreenStatus::GreenActive.to_string(), "GreenActive");
         assert_eq!(BlueGreenStatus::Transitioning.to_string(), "Transitioning");
-        assert_eq!(BlueGreenStatus::WaitingForGreen.to_string(), "WaitingForGreen");
+        assert_eq!(
+            BlueGreenStatus::WaitingForGreen.to_string(),
+            "WaitingForGreen"
+        );
         assert_eq!(BlueGreenStatus::GreenReady.to_string(), "GreenReady");
         assert_eq!(BlueGreenStatus::CleaningUp.to_string(), "CleaningUp");
     }

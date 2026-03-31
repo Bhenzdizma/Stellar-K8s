@@ -1,7 +1,7 @@
 //! Incident reporting and post-mortem artifact gathering
 
 use std::fs::File;
-use std::io::{Write};
+use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use k8s_openapi::api::core::v1::{Event, Pod};
 use kube::api::{Api, ListParams, LogParams};
 use kube::{Client, ResourceExt};
-use zip::write::FileOptions;
+use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
 use crate::crd::StellarNode;
@@ -45,12 +45,15 @@ pub async fn run_incident_report(args: IncidentReportArgs) -> Result<()> {
     let now = Utc::now();
     let (start_time, end_time) = calculate_window(&args, now)?;
 
-    println!("Gathering incident artifacts for window: {} to {}", start_time, end_time);
+    println!(
+        "Gathering incident artifacts for window: {} to {}",
+        start_time, end_time
+    );
 
     let path = Path::new(&args.output);
     let file = File::create(path)?;
     let mut zip = ZipWriter::new(file);
-    let options = FileOptions::default()
+    let options = SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o644);
 
@@ -61,7 +64,15 @@ pub async fn run_incident_report(args: IncidentReportArgs) -> Result<()> {
     gather_stellar_pod_logs(&client, &args.namespace, &mut zip, options, start_time).await?;
 
     // 3. Kubernetes Events
-    gather_events(&client, &args.namespace, &mut zip, options, start_time, end_time).await?;
+    gather_events(
+        &client,
+        &args.namespace,
+        &mut zip,
+        options,
+        start_time,
+        end_time,
+    )
+    .await?;
 
     // 4. StellarNode CRD Status
     gather_crd_status(&client, &args.namespace, &mut zip, options).await?;
@@ -75,7 +86,10 @@ pub async fn run_incident_report(args: IncidentReportArgs) -> Result<()> {
     Ok(())
 }
 
-fn calculate_window(args: &IncidentReportArgs, now: DateTime<Utc>) -> Result<(DateTime<Utc>, DateTime<Utc>)> {
+fn calculate_window(
+    args: &IncidentReportArgs,
+    now: DateTime<Utc>,
+) -> Result<(DateTime<Utc>, DateTime<Utc>)> {
     let end_time = if let Some(to) = &args.to {
         DateTime::parse_from_rfc3339(to)
             .map_err(|e| Error::ConfigError(format!("Invalid 'to' time: {e}")))?
@@ -90,7 +104,9 @@ fn calculate_window(args: &IncidentReportArgs, now: DateTime<Utc>) -> Result<(Da
             .with_timezone(&Utc)
     } else if let Some(since) = &args.since {
         let duration = parse_duration_string(since)?;
-        end_time - chrono::Duration::from_std(duration).map_err(|_| Error::ConfigError("Duration too large".to_string()))?
+        end_time
+            - chrono::Duration::from_std(duration)
+                .map_err(|_| Error::ConfigError("Duration too large".to_string()))?
     } else {
         // Default to 1 hour
         end_time - chrono::Duration::hours(1)
@@ -102,16 +118,24 @@ fn calculate_window(args: &IncidentReportArgs, now: DateTime<Utc>) -> Result<(Da
 fn parse_duration_string(s: &str) -> Result<Duration> {
     let s = s.trim();
     if s.ends_with('h') {
-        let h = s[..s.len() - 1].parse::<u64>().map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
+        let h = s[..s.len() - 1]
+            .parse::<u64>()
+            .map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
         Ok(Duration::from_secs(h * 3600))
     } else if s.ends_with('m') {
-        let m = s[..s.len() - 1].parse::<u64>().map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
+        let m = s[..s.len() - 1]
+            .parse::<u64>()
+            .map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
         Ok(Duration::from_secs(m * 60))
     } else if s.ends_with('s') {
-        let s_val = s[..s.len() - 1].parse::<u64>().map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
+        let s_val = s[..s.len() - 1]
+            .parse::<u64>()
+            .map_err(|_| Error::ConfigError(format!("Invalid duration: {s}")))?;
         Ok(Duration::from_secs(s_val))
     } else {
-        Err(Error::ConfigError(format!("Unsupported duration format: {s} (use 'h', 'm', or 's')")))
+        Err(Error::ConfigError(format!(
+            "Unsupported duration format: {s} (use 'h', 'm', or 's')"
+        )))
     }
 }
 
@@ -119,7 +143,7 @@ async fn gather_operator_logs<W: Write + std::io::Seek>(
     client: &Client,
     namespace: &str,
     zip: &mut ZipWriter<W>,
-    options: FileOptions<()>,
+    options: SimpleFileOptions,
     start_time: DateTime<Utc>,
 ) -> Result<()> {
     println!("Gathering operator logs...");
@@ -140,7 +164,10 @@ async fn gather_operator_logs<W: Write + std::io::Seek>(
                 zip.write_all(logs.as_bytes())?;
             }
             Err(e) => {
-                eprintln!("Warning: could not fetch logs for operator pod {}: {}", pod_name, e);
+                eprintln!(
+                    "Warning: could not fetch logs for operator pod {}: {}",
+                    pod_name, e
+                );
             }
         }
     }
@@ -151,7 +178,7 @@ async fn gather_stellar_pod_logs<W: Write + std::io::Seek>(
     client: &Client,
     namespace: &str,
     zip: &mut ZipWriter<W>,
-    options: FileOptions<()>,
+    options: SimpleFileOptions,
     start_time: DateTime<Utc>,
 ) -> Result<()> {
     println!("Gathering Stellar pod logs...");
@@ -172,7 +199,10 @@ async fn gather_stellar_pod_logs<W: Write + std::io::Seek>(
                 zip.write_all(logs.as_bytes())?;
             }
             Err(e) => {
-                eprintln!("Warning: could not fetch logs for node pod {}: {}", pod_name, e);
+                eprintln!(
+                    "Warning: could not fetch logs for node pod {}: {}",
+                    pod_name, e
+                );
             }
         }
     }
@@ -183,25 +213,27 @@ async fn gather_events<W: Write + std::io::Seek>(
     client: &Client,
     namespace: &str,
     zip: &mut ZipWriter<W>,
-    options: FileOptions<()>,
+    options: SimpleFileOptions,
     start_time: DateTime<Utc>,
     _end_time: DateTime<Utc>,
 ) -> Result<()> {
     println!("Gathering Kubernetes events...");
     let event_api: Api<Event> = Api::namespaced(client.clone(), namespace);
-    let events = event_api.list(&ListParams::default()).await.map_err(Error::KubeError)?;
+    let events = event_api
+        .list(&ListParams::default())
+        .await
+        .map_err(Error::KubeError)?;
 
-    let relevant_events: Vec<_> = events.items.into_iter()
+    let relevant_events: Vec<_> = events
+        .items
+        .into_iter()
         .filter(|e| {
-            if let Some(time) = e.last_timestamp.as_ref().or(e.event_time.as_ref().map(|et| &et.0)) {
-                // Approximate filtering
-                let event_time: DateTime<Utc> = match time {
-                    k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(t) => *t,
-                };
-                event_time >= start_time
-            } else {
-                true
-            }
+            let event_time = e
+                .last_timestamp
+                .as_ref()
+                .map(|t| t.0)
+                .or_else(|| e.event_time.as_ref().map(|et| et.0));
+            event_time.map(|t| t >= start_time).unwrap_or(true)
         })
         .collect();
 
@@ -215,11 +247,14 @@ async fn gather_crd_status<W: Write + std::io::Seek>(
     client: &Client,
     namespace: &str,
     zip: &mut ZipWriter<W>,
-    options: FileOptions<()>,
+    options: SimpleFileOptions,
 ) -> Result<()> {
     println!("Gathering StellarNode CRD status...");
     let node_api: Api<StellarNode> = Api::namespaced(client.clone(), namespace);
-    let nodes = node_api.list(&ListParams::default()).await.map_err(Error::KubeError)?;
+    let nodes = node_api
+        .list(&ListParams::default())
+        .await
+        .map_err(Error::KubeError)?;
 
     let nodes_json = serde_json::to_string_pretty(&nodes.items)?;
     zip.start_file("stellarnodes-status.json", options)?;
@@ -229,7 +264,7 @@ async fn gather_crd_status<W: Write + std::io::Seek>(
 
 fn add_lessons_learned_template<W: Write + std::io::Seek>(
     zip: &mut ZipWriter<W>,
-    options: FileOptions<()>,
+    options: SimpleFileOptions,
 ) -> Result<()> {
     let template = r#"# Incident Lessons Learned
 

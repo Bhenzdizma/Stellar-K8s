@@ -266,9 +266,7 @@ async fn run(cli: Cli) -> Result<()> {
             generate(shell, &mut cmd, name, &mut std::io::stdout());
             Ok(())
         }
-        Commands::IncidentReport(args) => {
-            stellar_k8s::incident::run_incident_report(args).await
-        }
+        Commands::IncidentReport(args) => stellar_k8s::incident::run_incident_report(args).await,
     }
 }
 
@@ -822,7 +820,6 @@ mod tests {
                 network: StellarNetwork::Testnet,
                 version: "v21.0.0".to_string(),
                 replicas: 1,
-                ..Default::default()
                 resources: Default::default(),
                 storage: Default::default(),
                 validator_config: None,

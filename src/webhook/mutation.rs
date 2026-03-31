@@ -204,7 +204,8 @@ fn get_standard_labels(spec: &StellarNodeSpec, name: &str) -> BTreeMap<String, S
     );
     labels.insert(
         "stellar-network".to_string(),
-        spec.network.scheduling_label_value(&spec.custom_network_passphrase),
+        spec.network
+            .scheduling_label_value(&spec.custom_network_passphrase),
     );
     labels.insert(
         "stellar.org/node-type".to_string(),
@@ -280,7 +281,6 @@ mod tests {
             network: StellarNetwork::Testnet,
             version: "v21.0.0".to_string(),
             replicas: 1,
-            ..Default::default()
             min_available: None,
             max_unavailable: None,
             suspended: false,
@@ -338,7 +338,6 @@ mod tests {
             network: StellarNetwork::Mainnet,
             version: "v2.31.0".to_string(),
             replicas: 1,
-            ..Default::default()
             min_available: None,
             max_unavailable: None,
             suspended: false,

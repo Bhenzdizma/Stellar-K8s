@@ -82,8 +82,7 @@ pub static NODE_SYNC_STATUS: Lazy<Family<NodeLabels, Gauge<i64, AtomicI64>>> =
     Lazy::new(Family::default);
 
 /// Gauge tracking node up status (0=down, 1=up) based on pod readiness
-pub static NODE_UP: Lazy<Family<NodeLabels, Gauge<i64, AtomicI64>>> =
-    Lazy::new(Family::default);
+pub static NODE_UP: Lazy<Family<NodeLabels, Gauge<i64, AtomicI64>>> = Lazy::new(Family::default);
 
 /// Gauge tracking number of critical nodes in the quorum
 pub static QUORUM_CRITICAL_NODES: Lazy<Family<NodeLabels, Gauge<i64, AtomicI64>>> =
@@ -624,7 +623,7 @@ impl std::fmt::Display for NodePhase {
 }
 
 /// Update the node sync status metric for a node
-/// 
+///
 /// The sync status value is encoded as an integer for Prometheus compatibility:
 /// - 0 = Pending
 /// - 1 = Creating
@@ -656,7 +655,7 @@ pub fn set_node_sync_status(
 }
 
 /// Set the node up status based on pod readiness
-/// 
+///
 /// `up` should be true if the node's pods are ready, false otherwise
 pub fn set_node_up(
     namespace: &str,

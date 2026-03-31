@@ -72,7 +72,7 @@ pub enum StellarNetwork {
     #[default]
     Testnet,
     Futurenet,
-    Custom,
+    Custom(String),
 }
 
 impl StellarNetwork {
@@ -81,7 +81,7 @@ impl StellarNetwork {
             StellarNetwork::Mainnet => "Public Global Stellar Network ; September 2015",
             StellarNetwork::Testnet => "Test SDF Network ; September 2015",
             StellarNetwork::Futurenet => "Test SDF Future Network ; October 2022",
-            StellarNetwork::Custom => custom.as_deref().unwrap_or(""),
+            StellarNetwork::Custom(_) => custom.as_deref().unwrap_or(""),
         }
     }
 
@@ -119,17 +119,16 @@ impl StellarNetwork {
     }
 
     /// Stable, DNS-1123-friendly label value for topology spread and anti-affinity.
-    pub fn scheduling_label_value(&self, custom: &Option<String>) -> String {
+    pub fn scheduling_label_value(&self, _custom: &Option<String>) -> String {
         match self {
             StellarNetwork::Mainnet => "mainnet".to_string(),
             StellarNetwork::Testnet => "testnet".to_string(),
             StellarNetwork::Futurenet => "futurenet".to_string(),
-            StellarNetwork::Custom => {
+            StellarNetwork::Custom(name) => {
                 use std::collections::hash_map::DefaultHasher;
                 use std::hash::{Hash, Hasher};
                 let mut h = DefaultHasher::new();
-                let passphrase = custom.as_deref().unwrap_or("");
-                passphrase.hash(&mut h);
+                name.hash(&mut h);
                 format!("custom-{:x}", h.finish())
             }
         }

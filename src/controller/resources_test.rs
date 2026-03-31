@@ -35,7 +35,6 @@ mod tests {
                 },
             },
             replicas: 3,
-            ..Default::default()
             min_available: None,
             max_unavailable: None,
             suspended: false,

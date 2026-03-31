@@ -20,7 +20,6 @@ mod tests {
             network: StellarNetwork::Testnet,
             version: "v21.0.0".to_string(),
             replicas: 1,
-            ..Default::default()
             min_available: None,
             max_unavailable: None,
             suspended: false,
@@ -104,7 +103,6 @@ mod tests {
                     strategy: strategy.clone(),
                     archive_sharding: false,
                 }),
-                ..Default::default()
                 db_maintenance_config: None,
                 oci_snapshot: None,
                 service_mesh: None,
@@ -114,7 +112,7 @@ mod tests {
                 vpa_config: None,
                 read_pool_endpoint: None,
                 sidecars: None,
-            custom_network_passphrase: None,
+                custom_network_passphrase: None,
             },
             status: None,
         }
@@ -137,7 +135,6 @@ mod tests {
                 network: StellarNetwork::Mainnet,
                 version: "v21.0.0".to_string(),
                 replicas: 1,
-                ..Default::default()
                 min_available: None,
                 max_unavailable: None,
                 suspended: false,
@@ -169,7 +166,7 @@ mod tests {
                 vpa_config: None,
                 read_pool_endpoint: None,
                 sidecars: None,
-            custom_network_passphrase: None,
+                custom_network_passphrase: None,
             },
             status: None,
         }
