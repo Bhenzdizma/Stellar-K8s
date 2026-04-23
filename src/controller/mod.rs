@@ -55,6 +55,7 @@ pub mod maintenance;
 pub mod resource_meta;
 
 mod archive_health;
+pub mod db_pool;
 pub mod archive_prune;
 pub mod audit;
 pub mod captive_core;
@@ -124,6 +125,7 @@ pub use peer_discovery::{
     PeerDiscoveryManager, PeerInfo,
 };
 #[cfg(feature = "reconciler-fuzz")]
+pub use db_pool::{create_pool, DbPoolConfig, DEFAULT_CONNECTION_TIMEOUT_SECS, DEFAULT_MAX_CONNECTIONS};
 pub use reconciler::reconcile_for_fuzz;
 pub use reconciler::{run_controller, ControllerState};
 pub use remediation::{can_remediate, check_stale_node, RemediationLevel, StaleCheckResult};
