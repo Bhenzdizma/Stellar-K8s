@@ -58,6 +58,7 @@ mod stellar_node_spec_validation {
             vpa_config: None,
             read_pool_endpoint: None,
             sidecars: None,
+            cert_manager: None,
             custom_network_passphrase: None,
             nat_traversal: None,
         }
@@ -112,6 +113,7 @@ mod stellar_node_spec_validation {
             vpa_config: None,
             read_pool_endpoint: None,
             sidecars: None,
+            cert_manager: None,
             custom_network_passphrase: None,
             nat_traversal: None,
         }
@@ -164,6 +166,7 @@ mod stellar_node_spec_validation {
             vpa_config: None,
             read_pool_endpoint: None,
             sidecars: None,
+            cert_manager: None,
             custom_network_passphrase: None,
         nat_traversal: None,
         }
