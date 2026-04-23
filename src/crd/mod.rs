@@ -66,7 +66,8 @@ pub use service_mesh::{
     ServiceMeshConfig,
 };
 pub use stellar_node::{
-    BGPStatus, SpecValidationError, StellarNode, StellarNodeSpec, StellarNodeStatus,
+    BGPStatus, SnapshotBootstrapStatus, SpecValidationError, StellarNode, StellarNodeSpec,
+    StellarNodeStatus,
 };
 pub use stellar_benchmark::{
     BenchmarkConfig, BenchmarkMetrics, BenchmarkPhase, BenchmarkReport, BenchmarkReportSpec,

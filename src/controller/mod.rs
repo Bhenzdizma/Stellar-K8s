@@ -99,6 +99,7 @@ mod resources;
 mod resources_test;
 pub mod service_mesh;
 mod snapshot;
+pub mod snapshot_worker;
 pub mod traffic;
 #[cfg(test)]
 mod traffic_test;
@@ -134,6 +135,7 @@ pub use peer_discovery::{
 pub use reconciler::reconcile_for_fuzz;
 pub use reconciler::{run_controller, ControllerState};
 pub use remediation::{can_remediate, check_stale_node, RemediationLevel, StaleCheckResult};
+pub use snapshot_worker::run_snapshot_worker;
 pub use service_mesh::{
     delete_service_mesh_resources, ensure_destination_rule, ensure_peer_authentication,
     ensure_request_authentication, ensure_virtual_service,

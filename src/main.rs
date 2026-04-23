@@ -1277,6 +1277,22 @@ async fn run_operator(args: RunArgs) -> Result<(), Error> {
         });
     }
 
+    // Spawn the auto-snapshot worker.
+    // This background task periodically creates CSI VolumeSnapshots for all
+    // Validator nodes with `spec.snapshotSchedule` configured, and tracks
+    // bootstrap status for nodes started from a snapshot.
+    {
+        let snapshot_client = client.clone();
+        let snapshot_reporter = kube::runtime::events::Reporter {
+            controller: "stellar-operator-snapshot-worker".to_string(),
+            instance: None,
+        };
+        tokio::spawn(async move {
+            controller::run_snapshot_worker(snapshot_client, snapshot_reporter).await;
+        });
+        info!("Auto-snapshot worker spawned");
+    }
+
     let result = tokio::select! {
         res = controller::run_controller(state) => {
             res
