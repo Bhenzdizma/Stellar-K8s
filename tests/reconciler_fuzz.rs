@@ -1,4 +1,3 @@
-
 //! State-machine fuzzer for the StellarNode reconciler.
 //!
 //! Uses proptest to generate random mutations of StellarNodeSpec and random

@@ -58,8 +58,8 @@ mod tests {
             validator_config: None,
             horizon_config: None,
             soroban_config: None,
-                nat_traversal: None,
-                cross_cloud_failover: None,
+            nat_traversal: None,
+            cross_cloud_failover: None,
         }
     }
 
