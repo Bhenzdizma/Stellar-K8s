@@ -684,4 +684,37 @@ VALIDATORS=["VALIDATOR1", "VALIDATOR2"]"#
             "Version should contain dots for semantic versioning"
         );
     }
+
+    /// Test ExternalDNS annotations on Service
+    #[test]
+    fn test_external_dns_annotations() {
+        use crate::controller::resources::build_service_for_test;
+        use crate::crd::ExternalDNSConfig;
+
+        let mut node = create_test_validator_node("test-validator", "default");
+        if let Some(ref mut vc) = node.spec.validator_config {
+            vc.external_dns = Some(ExternalDNSConfig {
+                hostname: "validator.example.com".to_string(),
+                ttl: 60,
+                provider: Some("aws".to_string()),
+                annotations: None,
+            });
+        }
+
+        let service = build_service_for_test(&node);
+        let annotations = service.metadata.annotations.as_ref().expect("Annotations should be present");
+
+        assert_eq!(
+            annotations.get("external-dns.alpha.kubernetes.io/hostname").unwrap(),
+            "validator.example.com, _stellar-peering._tcp.validator.example.com"
+        );
+        assert_eq!(
+            annotations.get("external-dns.alpha.kubernetes.io/ttl").unwrap(),
+            "60"
+        );
+        assert_eq!(
+            annotations.get("external-dns.alpha.kubernetes.io/provider").unwrap(),
+            "aws"
+        );
+    }
 }

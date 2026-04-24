@@ -338,6 +338,9 @@ pub struct ValidatorConfig {
     /// Cloud HSM configuration for secure key loading (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hsm_config: Option<HsmConfig>,
+    /// ExternalDNS configuration for automated peer discovery
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_dns: Option<ExternalDNSConfig>,
 }
 
 // =============================================================================
@@ -500,6 +503,9 @@ pub struct IngressConfig {
     pub cert_manager_cluster_issuer: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, String>>,
+    /// ExternalDNS configuration for automated record management
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_dns: Option<ExternalDNSConfig>,
 }
 
 /// Ingress host entry
@@ -718,6 +724,9 @@ pub struct LoadBalancerConfig {
     pub health_check_enabled: bool,
     #[serde(default = "default_health_check_port")]
     pub health_check_port: i32,
+    /// ExternalDNS configuration for the LoadBalancer service
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_dns: Option<ExternalDNSConfig>,
 }
 
 fn default_health_check_port() -> i32 {
