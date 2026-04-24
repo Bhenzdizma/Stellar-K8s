@@ -48,7 +48,6 @@ use crate::crd::{
     WalBackupConfiguration,
 };
 use crate::error::{Error, Result};
-use crate::scheduler::scoring::extract_peer_names_from_toml;
 
 /// Get the standard labels for a StellarNode's resources
 pub(crate) fn standard_labels(node: &StellarNode) -> BTreeMap<String, String> {

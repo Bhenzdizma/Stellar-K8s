@@ -7,14 +7,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::StreamExt;
-use k8s_openapi::api::core::v1::{Node, Pod, Event};
+use k8s_openapi::api::core::v1::{Node, Pod};
 use k8s_openapi::api::policy::v1::Eviction;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::{
-    api::{Api, ListParams, Patch, PatchParams, PostParams},
+    api::{Api, ListParams, PostParams},
     runtime::{
         watcher::{self, Config},
-        events::{Recorder, Reporter, EventType},
+        events::{Reporter, EventType, Recorder},
     },
     Client, Resource, ResourceExt,
 };
@@ -23,7 +23,7 @@ use tracing::{debug, error, info, warn, instrument};
 
 use crate::crd::{StellarNode, NodeType};
 use crate::error::{Error, Result};
-use crate::controller::health::{check_node_health, HealthCheckResult};
+use crate::controller::health::check_node_health;
 
 /// NodeDrainOrchestrator manages the lifecycle of Stellar Core pods during node drains.
 pub struct NodeDrainOrchestrator {
