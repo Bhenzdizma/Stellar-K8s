@@ -262,6 +262,13 @@ pub struct StellarNodeSpec {
     /// See `docs/hitless-upgrade.md` for the full design and feasibility study.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hitless_upgrade: Option<super::types::HitlessUpgradeConfig>,
+
+    /// Proactive Failure Detection using eBPF.
+    ///
+    /// When enabled, an `ebpf-exporter` sidecar is injected into the Validator Pod
+    /// to monitor silent failures like slow disk IO and network jitter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ebpf_config: Option<super::types::EbpfConfig>,
 }
 
 fn default_replicas() -> i32 {
@@ -317,6 +324,7 @@ impl Default for StellarNodeSpec {
             probes: None,
             cross_cloud_failover: None,
             hitless_upgrade: None,
+            ebpf_config: None,
         }
     }
 }

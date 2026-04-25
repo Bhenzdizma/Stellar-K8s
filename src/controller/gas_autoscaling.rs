@@ -19,9 +19,9 @@ use std::time::{Duration, Instant};
 use tracing::{debug, error, info};
 
 use crate::crd::GasAutoscalingConfig;
+use k8s_openapi::api::autoscaling::v2::HorizontalPodAutoscaler;
 use kube::api::{Api, Patch, PatchParams};
 use kube::ResourceExt;
-use k8s_openapi::api::autoscaling::v2::HorizontalPodAutoscaler;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -186,12 +186,7 @@ impl GasCollector {
                 tokio::time::sleep(backoff).await;
             }
 
-            let response = match client
-                .post(&self.rpc_url)
-                .json(&body)
-                .send()
-                .await
-            {
+            let response = match client.post(&self.rpc_url).json(&body).send().await {
                 Ok(r) => r,
                 Err(e) => {
                     last_network_err = Some(e.to_string());
@@ -210,14 +205,14 @@ impl GasCollector {
             }
 
             // Successful HTTP response — parse JSON.
-            let text = response.text().await.map_err(|e| {
-                GasCollectionError::ParseError(e.to_string())
-            })?;
+            let text = response
+                .text()
+                .await
+                .map_err(|e| GasCollectionError::ParseError(e.to_string()))?;
 
-            let parsed: GetTransactionsResponse =
-                serde_json::from_str(&text).map_err(|e| {
-                    GasCollectionError::ParseError(format!("{e}: {}", &text[..text.len().min(1024)]))
-                })?;
+            let parsed: GetTransactionsResponse = serde_json::from_str(&text).map_err(|e| {
+                GasCollectionError::ParseError(format!("{e}: {}", &text[..text.len().min(1024)]))
+            })?;
 
             let transactions = parsed.result.transactions;
             if transactions.is_empty() {
@@ -229,10 +224,7 @@ impl GasCollector {
                 .map(|t| t.fee_charged.unwrap_or(0))
                 .sum();
 
-            let ledger_sequence = transactions
-                .first()
-                .and_then(|t| t.ledger)
-                .unwrap_or(0);
+            let ledger_sequence = transactions.first().and_then(|t| t.ledger).unwrap_or(0);
 
             let sample = LedgerGasSample {
                 ledger_sequence,
@@ -365,7 +357,9 @@ impl GasAutoscaler {
     /// 6. Returns appropriate ScalingDecision
     ///
     /// This method does NOT patch the HPA — that's done in task 4.2.
-    pub async fn evaluate_and_scale(&self) -> Result<ScalingDecision, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn evaluate_and_scale(
+        &self,
+    ) -> Result<ScalingDecision, Box<dyn std::error::Error + Send + Sync>> {
         // 1. Lock state and read current values
         let (current_score, current_replicas, last_scale_up_at, last_scale_down_at) = {
             let state = self.state.lock().unwrap();
@@ -476,19 +470,30 @@ impl GasAutoscaler {
     }
 
     /// Patch the Kubernetes HPA resource to enforce the new `minReplicas`.
-    pub async fn patch_hpa(&self, decision: &ScalingDecision) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn patch_hpa(
+        &self,
+        decision: &ScalingDecision,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let (from, to, score, reason_str) = match decision {
-            ScalingDecision::ScaleUp { from, to, score } => (*from, *to, *score, "Gas usage above scale-up threshold"),
-            ScalingDecision::ScaleDown { from, to, score } => (*from, *to, *score, "Gas usage below scale-down threshold"),
+            ScalingDecision::ScaleUp { from, to, score } => {
+                (*from, *to, *score, "Gas usage above scale-up threshold")
+            }
+            ScalingDecision::ScaleDown { from, to, score } => {
+                (*from, *to, *score, "Gas usage below scale-down threshold")
+            }
             ScalingDecision::Hold { reason } => {
                 debug!("Holding scaling: {:?}", reason);
                 return Ok(());
             }
         };
 
-        debug!("Patching HPA {}/{} from {} to {} (score: {:.2})", self.node_ref.namespace, self.node_ref.name, from, to, score);
+        debug!(
+            "Patching HPA {}/{} from {} to {} (score: {:.2})",
+            self.node_ref.namespace, self.node_ref.name, from, to, score
+        );
 
-        let hpa_api: Api<HorizontalPodAutoscaler> = Api::namespaced(self.k8s_client.clone(), &self.node_ref.namespace);
+        let hpa_api: Api<HorizontalPodAutoscaler> =
+            Api::namespaced(self.k8s_client.clone(), &self.node_ref.namespace);
 
         // We patch `minReplicas` to force the scaling up based on gas trend,
         // without preventing K8s from scaling it further up via CPU/Memory if needed.
@@ -592,7 +597,8 @@ pub fn parse_duration(s: &str) -> Result<Duration, Box<dyn std::error::Error + S
 }
 
 // Global registry for gas autoscaler background loops
-static GAS_SCALERS: OnceLock<Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>> = OnceLock::new();
+static GAS_SCALERS: OnceLock<Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>> =
+    OnceLock::new();
 
 /// Ensures that the gas autoscaler background loop is running (or stopped) for a given node.
 pub fn ensure_gas_autoscaler_running(
@@ -600,8 +606,15 @@ pub fn ensure_gas_autoscaler_running(
     node: &crate::crd::StellarNode,
     config: &GasAutoscalingConfig,
 ) {
-    let key = format!("{}/{}", node.namespace().unwrap_or_default(), node.name_any());
-    let mut scalers = GAS_SCALERS.get_or_init(|| Mutex::new(HashMap::new())).lock().unwrap();
+    let key = format!(
+        "{}/{}",
+        node.namespace().unwrap_or_default(),
+        node.name_any()
+    );
+    let mut scalers = GAS_SCALERS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap();
 
     if !config.enabled {
         if let Some(tx) = scalers.remove(&key) {
@@ -633,7 +646,11 @@ pub fn ensure_gas_autoscaler_running(
     // Start gas collector loop
     let collector = GasCollector {
         // Build the local cluster DNS URL for the Soroban RPC service
-        rpc_url: format!("http://{}.{}.svc.cluster.local:8000", node.name_any(), node.namespace().unwrap_or_else(|| "default".to_string())),
+        rpc_url: format!(
+            "http://{}.{}.svc.cluster.local:8000",
+            node.name_any(),
+            node.namespace().unwrap_or_else(|| "default".to_string())
+        ),
         poll_interval: Duration::from_secs(2),
         max_retries: 3,
         state: state.clone(),
@@ -664,4 +681,3 @@ pub fn ensure_gas_autoscaler_running(
         scaler.run(rx).await;
     });
 }
-

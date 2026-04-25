@@ -332,7 +332,7 @@ pub async fn run_controller(state: Arc<ControllerState>) -> Result<()> {
     });
 
     // Start Quorum Optimizer in the background
-    let quorum_optimizer = Arc::new(quorum::QuorumOptimizer::new(
+    let quorum_optimizer = Arc::new(super::quorum::QuorumOptimizer::new(
         client.clone(),
         state.event_reporter.clone(),
     ));
@@ -1629,7 +1629,11 @@ pub(crate) async fn apply_stellar_node(
     if !ctx.dry_run && node.spec.node_type == NodeType::SorobanRpc {
         if let Some(autoscaling) = &node.spec.autoscaling {
             if let Some(gas_cfg) = &autoscaling.gas_autoscaling {
-                crate::controller::gas_autoscaling::ensure_gas_autoscaler_running(client.clone(), node, gas_cfg);
+                crate::controller::gas_autoscaling::ensure_gas_autoscaler_running(
+                    client.clone(),
+                    node,
+                    gas_cfg,
+                );
             }
         }
     }
@@ -2471,20 +2475,17 @@ async fn measure_canary_error_rate(
         .labels(&format!("app.kubernetes.io/instance={canary_name}"));
 
     let pods = pod_api.list(&lp).await.map_err(Error::KubeError)?;
-    let pod = pods
-        .items
-        .iter()
-        .find(|p| {
-            p.status
-                .as_ref()
-                .and_then(|s| s.conditions.as_ref())
-                .map(|conds| {
-                    conds
-                        .iter()
-                        .any(|c| c.type_ == "Ready" && c.status == "True")
-                })
-                .unwrap_or(false)
-        });
+    let pod = pods.items.iter().find(|p| {
+        p.status
+            .as_ref()
+            .and_then(|s| s.conditions.as_ref())
+            .map(|conds| {
+                conds
+                    .iter()
+                    .any(|c| c.type_ == "Ready" && c.status == "True")
+            })
+            .unwrap_or(false)
+    });
 
     let pod_ip = match pod.and_then(|p| p.status.as_ref()?.pod_ip.as_deref()) {
         Some(ip) => ip.to_string(),

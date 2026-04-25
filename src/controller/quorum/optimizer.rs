@@ -10,7 +10,7 @@ use k8s_openapi::api::core::v1::Pod;
 use kube::{
     api::{Api, ListParams, Patch, PatchParams},
     runtime::events::{EventType, Recorder, Reporter},
-    Client, ResourceExt,
+    Client, Resource, ResourceExt,
 };
 use tracing::{debug, error, info, instrument, warn};
 

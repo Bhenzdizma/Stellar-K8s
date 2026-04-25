@@ -810,6 +810,21 @@ pub struct AutoscalingConfig {
     pub gas_autoscaling: Option<GasAutoscalingConfig>,
 }
 
+/// eBPF-based proactive failure detection configuration
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct EbpfConfig {
+    /// Enable the eBPF exporter sidecar
+    #[serde(default)]
+    pub enabled: bool,
+    /// Monitor write() latency to the ledger DB
+    #[serde(default = "default_true")]
+    pub monitor_write_latency: bool,
+    /// Track TCP retransmits and handshake times for peer connections
+    #[serde(default = "default_true")]
+    pub monitor_tcp_retransmits: bool,
+}
+
 /// Scaling behavior configuration for HPA
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
